@@ -1,0 +1,197 @@
+package request
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"regexp"
+	"strings"
+)
+
+// Request contains the url parameters and the request body parsed as JSON
+type Request struct {
+	Parameters      map[string]string
+	Body            map[string]string
+	OriginalRequest *http.Request
+}
+
+// RouteHandler handles the route
+type RouteHandler = func(request Request, w http.ResponseWriter) (interface{}, error)
+
+// Route a route which can be handled
+type Route struct {
+	Path    string
+	Method  string
+	Handler RouteHandler
+	Regex   string
+	Parts   []string
+}
+
+// NewRoute creates a new route instance
+func NewRoute(path string, method string, handler RouteHandler) *Route {
+	route := &Route{Path: path, Method: method, Handler: handler}
+	route.Parse(path)
+	return route
+}
+
+// Match check if the route matches the current url and method
+func (r *Route) Match(path string, method string) bool {
+	if method != r.Method {
+		return false
+	}
+
+	res, err := regexp.MatchString(r.Regex, path)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("Matching regex", r.Regex, path, res)
+	return res
+}
+
+// Parameters parse url parameters
+func (r *Route) Parameters(path string) map[string]string {
+	parts := strings.Split(path, "/")[1:]
+	parameters := map[string]string{}
+	for key, value := range r.Parts {
+		if value == "" {
+			continue
+		}
+		if strings.Contains(value, ":") {
+			parameters[strings.Replace(value, ":", "", 1)] = parts[key]
+		}
+	}
+	return parameters
+}
+
+// Parse parses a route and generates a regex to match the route
+func (r *Route) Parse(path string) {
+	parts := strings.Split(path, "/")
+	r.Parts = parts
+	var regex string
+	for _, value := range parts {
+		if value == "" {
+			continue
+		}
+
+		if strings.Contains(value, ":") {
+			regex += `\/([a-z0-9]*)`
+			continue
+		}
+		regex += fmt.Sprintf(`\/(%s)`, value)
+	}
+	r.Regex = regex + "$"
+}
+
+// HTTPServer to describe the httpServer
+type HTTPServer struct {
+	Routes []*Route
+}
+
+func writeResponse(data interface{}, w http.ResponseWriter) {
+	if data == nil {
+		w.WriteHeader(404)
+		return
+	}
+	p, err := json.Marshal(data)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(p)
+}
+
+func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Println("Getting route for url", r.URL.Path, r.Method)
+	var matchedRoute *Route
+	for _, route := range e.Routes {
+		if route.Match(r.URL.Path, r.Method) {
+			matchedRoute = route
+			break
+		}
+	}
+
+	if matchedRoute == nil {
+		log.Println("error no match for route", r.URL.Path)
+		w.WriteHeader(404)
+		w.Write([]byte("Page not found"))
+		return
+	}
+
+	if matchedRoute.Method == http.MethodPost {
+		log.Println("Parsing request body")
+		body, error := ioutil.ReadAll(r.Body)
+
+		if error != nil {
+			log.Println(error)
+			w.WriteHeader(500)
+			w.Write([]byte("Error parsing body"))
+			return
+		}
+
+		var requestBody map[string]string
+		error = json.Unmarshal(body, &requestBody)
+
+		if error != nil {
+			log.Println(error)
+			w.WriteHeader(500)
+			w.Write([]byte("Error parsing json"))
+			return
+		}
+
+		log.Println("Parsed body", requestBody)
+
+		response, error := matchedRoute.Handler(Request{
+			Body:            requestBody,
+			Parameters:      matchedRoute.Parameters(r.URL.Path),
+			OriginalRequest: r,
+		}, w)
+
+		if error != nil {
+			log.Println(error)
+			w.WriteHeader(500)
+			w.Write([]byte("An error occured!"))
+			return
+		}
+
+		writeResponse(response, w)
+		return
+	}
+
+	response, error := matchedRoute.Handler(Request{
+		Parameters:      matchedRoute.Parameters(r.URL.Path),
+		OriginalRequest: r,
+	}, w)
+
+	if error != nil {
+		log.Println(error)
+		w.WriteHeader(500)
+		w.Write([]byte("An error occured!"))
+		return
+	}
+
+	writeResponse(response, w)
+	return
+}
+
+// Register registers a new route
+func (e *HTTPServer) Register(path string, method string, handler RouteHandler) {
+	e.Routes = append(e.Routes, NewRoute(path, method, handler))
+}
+
+// Get register a new route listening to get
+func (e *HTTPServer) Get(route string, handler RouteHandler) {
+	e.Register(route, http.MethodGet, handler)
+}
+
+// Post register a new route listening to post
+func (e *HTTPServer) Post(route string, handler RouteHandler) {
+	e.Register(route, http.MethodPost, handler)
+}
+
+// Listen Listen to a specific port
+func (e *HTTPServer) Listen(port string) {
+	http.ListenAndServe(port, e)
+}
