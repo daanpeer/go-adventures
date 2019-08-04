@@ -103,60 +103,80 @@ func writeResponse(data interface{}, w http.ResponseWriter) {
 	w.Write(p)
 }
 
-func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println("Getting route for url", r.URL.Path, r.Method)
-	var matchedRoute *Route
+func (e *HTTPServer) findRoute(r *http.Request) *Route {
 	for _, route := range e.Routes {
 		if route.Match(r.URL.Path, r.Method) {
-			matchedRoute = route
-			break
+			return route
 		}
 	}
+	return nil
+}
 
-	if matchedRoute == nil {
-		log.Println("error no match for route", r.URL.Path)
-		w.WriteHeader(404)
-		w.Write([]byte("Page not found"))
+func Throw500(err error, w http.ResponseWriter, r *http.Request) {
+	log.Println(err)
+	w.WriteHeader(500)
+	w.Write([]byte("Server error"))
+}
+
+func Throw404(w http.ResponseWriter, r *http.Request) {
+	log.Println("error no match for route", r.URL.Path)
+	w.WriteHeader(404)
+	w.Write([]byte("Page not found"))
+}
+
+func handlePostPutPatch(w http.ResponseWriter, r *http.Request, matchedRoute *Route) {
+	log.Println("Parsing request body")
+	body, error := ioutil.ReadAll(r.Body)
+
+	if error != nil {
+		Throw500(error, w, r)
 		return
 	}
 
-	if matchedRoute.Method == http.MethodPost {
-		log.Println("Parsing request body")
-		body, error := ioutil.ReadAll(r.Body)
+	var requestBody map[string]string
+	error = json.Unmarshal(body, &requestBody)
 
-		if error != nil {
-			log.Println(error)
-			w.WriteHeader(500)
-			w.Write([]byte("Error parsing body"))
-			return
+	if error != nil {
+		Throw500(error, w, r)
+		return
+	}
+
+	log.Println("Parsed body", requestBody)
+
+	response, error := matchedRoute.Handler(Request{
+		Body:            requestBody,
+		Parameters:      matchedRoute.Parameters(r.URL.Path),
+		OriginalRequest: r,
+	}, w)
+
+	if error != nil {
+		switch error.(type) {
+		case *ServerError:
+			Throw500(error, w, r)
+		case *NotFoundError:
+			Throw404(w, r)
+		default:
+			Throw500(error, w, r)
 		}
+		return
+	}
 
-		var requestBody map[string]string
-		error = json.Unmarshal(body, &requestBody)
+	w.Header().Set("Access-Control-Allow-Origin:", "*")
+	writeResponse(response, w)
+}
 
-		if error != nil {
-			log.Println(error)
-			w.WriteHeader(500)
-			w.Write([]byte("Error parsing json"))
-			return
-		}
+func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Println("Getting route for url", r.URL.Path, r.Method)
 
-		log.Println("Parsed body", requestBody)
+	matchedRoute := e.findRoute(r)
+	if matchedRoute == nil {
+		Throw404(w, r)
+		return
+	}
 
-		response, error := matchedRoute.Handler(Request{
-			Body:            requestBody,
-			Parameters:      matchedRoute.Parameters(r.URL.Path),
-			OriginalRequest: r,
-		}, w)
-
-		if error != nil {
-			log.Println(error)
-			w.WriteHeader(500)
-			w.Write([]byte("An error occured!"))
-			return
-		}
-
-		writeResponse(response, w)
+	// handle post or patch
+	if matchedRoute.Method == http.MethodPost || matchedRoute.Method == http.MethodPatch {
+		handlePostPutPatch(w, r, matchedRoute)
 		return
 	}
 
@@ -166,12 +186,18 @@ func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}, w)
 
 	if error != nil {
-		log.Println(error)
-		w.WriteHeader(500)
-		w.Write([]byte("An error occured!"))
+		switch error.(type) {
+		case *ServerError:
+			Throw500(error, w, r)
+		case *NotFoundError:
+			Throw404(w, r)
+		default:
+			Throw500(error, w, r)
+		}
 		return
 	}
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	writeResponse(response, w)
 	return
 }
@@ -191,7 +217,33 @@ func (e *HTTPServer) Post(route string, handler RouteHandler) {
 	e.Register(route, http.MethodPost, handler)
 }
 
+// Patch register a new route listening to patch
+func (e *HTTPServer) Patch(route string, handler RouteHandler) {
+	e.Register(route, http.MethodPatch, handler)
+}
+
+// Delete register a new route listening to delete
+func (e *HTTPServer) Delete(route string, handler RouteHandler) {
+	e.Register(route, http.MethodDelete, handler)
+}
+
 // Listen Listen to a specific port
-func (e *HTTPServer) Listen(port string) {
-	http.ListenAndServe(port, e)
+func (e *HTTPServer) Listen(port string) error {
+	return http.ListenAndServe(port, e)
+}
+
+type ServerError struct {
+	Path string
+}
+
+func (e *ServerError) Error() string {
+	return fmt.Sprintf("Server error", e.Path)
+}
+
+type NotFoundError struct {
+	Path string
+}
+
+func (e *NotFoundError) Error() string {
+	return fmt.Sprintf("Resource not found", e.Path)
 }

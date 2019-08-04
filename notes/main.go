@@ -4,9 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"time"
+	"strconv"
 
 	requests "./request"
 	_ "github.com/mattn/go-sqlite3"
@@ -17,12 +16,12 @@ func createDb(db *sql.DB) {
 		create table page
 		(
 			name varchar,
-			created_at datetime,
-			updated_at datetime,
-			deleted_at datetime,
+			createdAt datetime,
+			updatedAt datetime,
+			deletedAt datetime,
 			content json1,
-			parent_id int,
-			foreign key (parent_id) references page(_ROWID_)
+			parentID int,
+			foreign key (parentID) references page(_ROWID_)
 		);
 	`
 
@@ -36,92 +35,19 @@ func createDb(db *sql.DB) {
 
 func insertRows(db *sql.DB) {
 	for i := 0; i < 10; i++ {
-		res, _ := db.Exec(`insert into page (name, created_at, updated_at, deleted_at, parent_id) values ("test", date('now'), date('now'), null, null)`)
+		res, _ := db.Exec(`insert into page (name, createdAt, updatedAt, deletedAt, parentID) values ($1, date('now'), date('now'), null, null)`, "test-"+strconv.Itoa(i))
+		ID, _ := res.LastInsertId()
 		for j := 0; j < 5; j++ {
-			id, _ := res.LastInsertId()
-			db.Exec(`insert into page (name, created_at, updated_at, deleted_at, parent_id) values ("sub", date('now'), date('now'), null, $1)`, id)
+			db.Exec(`insert into page (name, createdAt, updatedAt, deletedAt, parentID) values ("sub", date('now'), date('now'), null, $1)`, ID)
 		}
-	}
-}
-
-type Page struct {
-	Id         int
-	Name       string
-	Created_at time.Time
-	Parent_id  int
-}
-
-func mapPage(rows *sql.Rows) Page {
-	page := Page{}
-	err := rows.Scan(&page.Id, &page.Name, &page.Created_at)
-	if err != nil {
-		panic(err)
-	}
-	return page
-}
-
-func mapPages(rows *sql.Rows) []Page {
-	var pages []Page
-	defer rows.Close()
-	for rows.Next() {
-		pages = append(pages, mapPage(rows))
-	}
-	return pages
-}
-
-func getPages(db *sql.DB) requests.RouteHandler {
-	return func(req requests.Request, w http.ResponseWriter) (interface{}, error) {
-		var rows *sql.Rows
-		var err error
-		if req.Parameters["parent_id"] != "" {
-			rows, err = db.Query(`select rowid as id, name, created_at from page where parent_id is $1`, req.Parameters["parent_id"])
-		} else {
-			rows, err = db.Query(`select rowid as id, name, created_at from page where parent_id is null`)
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		return mapPages(rows), nil
-	}
-}
-
-func addPage(db *sql.DB) requests.RouteHandler {
-	return func(req requests.Request, w http.ResponseWriter) (interface{}, error) {
-		fmt.Println(req.Body, req.Body["name"])
-		res, err := db.Exec(`insert into page (
-			name,
-			created_at,
-			updated_at,
-			deleted_at
-		) values (
-			$1,
-			date('now'),
-			date('now'),
-			null
-		)`, req.Body["name"])
-
-		if err != nil {
-			return nil, err
-		}
-
-		id, _ := res.LastInsertId()
-		rows, err := db.Query(`select rowid as id, name, created_at from page where id is $1`, id)
-
-		if err != nil {
-			return nil, err
-		}
-
-		rows.Next()
-		defer rows.Close()
-		return mapPage(rows), nil
 	}
 }
 
 func main() {
+	fmt.Println("Removing old db")
 	os.Remove("./notes.db")
 
+	fmt.Println("Creating new db")
 	db, err := sql.Open("sqlite3", "./notes.db")
 
 	if err != nil {
@@ -130,11 +56,23 @@ func main() {
 	defer db.Close()
 
 	createDb(db)
-	insertRows(db)
+
+	go func() {
+		fmt.Println("Inserting rows")
+		insertRows(db)
+		fmt.Println("Done inserting rows")
+	}()
 
 	app := requests.HTTPServer{}
-	app.Get("pages/:parent_id", getPages(db))
 	app.Get("pages", getPages(db))
+	app.Get("pages/:id", getPage(db))
 	app.Post("pages", addPage(db))
-	app.Listen(":8080")
+	app.Patch("pages/:id", updatePage(db))
+	app.Delete("pages/:id", deletePage(db))
+	app.Get("pages/:parent_id", getPages(db))
+	err = app.Listen(":8080")
+
+	if err != nil {
+		fmt.Println(err)
+	}
 }
