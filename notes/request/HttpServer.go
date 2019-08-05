@@ -237,7 +237,7 @@ type ServerError struct {
 }
 
 func (e *ServerError) Error() string {
-	return fmt.Sprintf("Server error", e.Path)
+	return "Server error"
 }
 
 type NotFoundError struct {
@@ -245,5 +245,5 @@ type NotFoundError struct {
 }
 
 func (e *NotFoundError) Error() string {
-	return fmt.Sprintf("Resource not found", e.Path)
+	return "Resource not found"
 }

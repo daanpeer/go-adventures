@@ -23,7 +23,7 @@ func mapPage(rows *sql.Rows) Page {
 }
 
 func mapPages(rows *sql.Rows) []Page {
-	var pages []Page
+	pages := []Page{}
 	defer rows.Close()
 	for rows.Next() {
 		pages = append(pages, mapPage(rows))

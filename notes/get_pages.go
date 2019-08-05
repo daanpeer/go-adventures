@@ -21,6 +21,7 @@ func getPages(db *sql.DB) requests.RouteHandler {
 			return nil, err
 		}
 
-		return mapPages(rows), nil
+		pages := mapPages(rows)
+		return pages, nil
 	}
 }

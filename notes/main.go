@@ -33,10 +33,46 @@ func createDb(db *sql.DB) {
 	}
 }
 
+func nest(db *sql.DB, lastID int64, iteration int) {
+	if iteration == 5 {
+		return
+	}
+
+	var name = "sub"
+	for index := 0; index < iteration; index++ {
+		name += "sub"
+	}
+
+	res, _ := db.Exec(`
+		insert into page (
+			name,
+			createdAt,
+			updatedAt,
+			deletedAt,
+			parentID
+		) values (
+			$1,
+			date('now'),
+			date('now'),
+			null,
+			$2	
+		)
+	`, name, lastID)
+
+	iteration++
+
+	ID, _ := res.LastInsertId()
+	lastID = ID
+	nest(db, lastID, iteration)
+}
+
 func insertRows(db *sql.DB) {
 	for i := 0; i < 10; i++ {
 		res, _ := db.Exec(`insert into page (name, createdAt, updatedAt, deletedAt, parentID) values ($1, date('now'), date('now'), null, null)`, "test-"+strconv.Itoa(i))
 		ID, _ := res.LastInsertId()
+
+		nest(db, ID, 1)
+
 		for j := 0; j < 5; j++ {
 			db.Exec(`insert into page (name, createdAt, updatedAt, deletedAt, parentID) values ("sub", date('now'), date('now'), null, $1)`, ID)
 		}
@@ -69,7 +105,7 @@ func main() {
 	app.Post("pages", addPage(db))
 	app.Patch("pages/:id", updatePage(db))
 	app.Delete("pages/:id", deletePage(db))
-	app.Get("pages/:parent_id", getPages(db))
+	app.Get("pages/sub/:parent_id", getPages(db))
 	err = app.Listen(":8080")
 
 	if err != nil {
