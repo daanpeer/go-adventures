@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -19,7 +20,7 @@ func createDb(db *sql.DB) {
 			createdAt datetime,
 			updatedAt datetime,
 			deletedAt datetime,
-			content json1,
+			content text,
 			parentID int,
 			foreign key (parentID) references page(_ROWID_)
 		);
@@ -33,6 +34,33 @@ func createDb(db *sql.DB) {
 	}
 }
 
+func insertPage(db *sql.DB, parameters map[string]interface{}) int64 {
+	data, _ := ioutil.ReadFile("./testpage.md")
+	content := string(data)
+	res, err := db.Exec(`
+		insert into page (
+			name,
+			content,
+			createdAt,
+			updatedAt,
+			deletedAt,
+			parentID
+		) values (
+			?,
+			?,
+			date('now'),
+			date('now'),
+			null,
+			?
+		)
+	`, parameters["name"], content, parameters["parent_id"])
+	if err != nil {
+		panic(err)
+	}
+	ID, _ := res.LastInsertId()
+	return ID
+}
+
 func nest(db *sql.DB, lastID int64, iteration int) {
 	if iteration == 5 {
 		return
@@ -43,38 +71,31 @@ func nest(db *sql.DB, lastID int64, iteration int) {
 		name += "sub"
 	}
 
-	res, _ := db.Exec(`
-		insert into page (
-			name,
-			createdAt,
-			updatedAt,
-			deletedAt,
-			parentID
-		) values (
-			$1,
-			date('now'),
-			date('now'),
-			null,
-			$2	
-		)
-	`, name, lastID)
-
 	iteration++
+	data := map[string]interface{}{
+		"name":      name,
+		"parent_id": lastID,
+	}
+	ID := insertPage(db, data)
 
-	ID, _ := res.LastInsertId()
 	lastID = ID
 	nest(db, lastID, iteration)
 }
 
 func insertRows(db *sql.DB) {
 	for i := 0; i < 10; i++ {
-		res, _ := db.Exec(`insert into page (name, createdAt, updatedAt, deletedAt, parentID) values ($1, date('now'), date('now'), null, null)`, "test-"+strconv.Itoa(i))
-		ID, _ := res.LastInsertId()
-
+		data := map[string]interface{}{
+			"name": "test-" + strconv.Atoi(i),
+		}
+		ID := insertPage(db, data)
 		nest(db, ID, 1)
-
 		for j := 0; j < 5; j++ {
-			db.Exec(`insert into page (name, createdAt, updatedAt, deletedAt, parentID) values ("sub", date('now'), date('now'), null, $1)`, ID)
+			data := map[string]interface{}{
+				"name":      "sub-" + string(i),
+				"parent_id": ID,
+			}
+
+			insertPage(db, data)
 		}
 	}
 }

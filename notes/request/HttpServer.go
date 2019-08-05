@@ -112,13 +112,13 @@ func (e *HTTPServer) findRoute(r *http.Request) *Route {
 	return nil
 }
 
-func Throw500(err error, w http.ResponseWriter, r *http.Request) {
+func throw500(err error, w http.ResponseWriter, r *http.Request) {
 	log.Println(err)
 	w.WriteHeader(500)
 	w.Write([]byte("Server error"))
 }
 
-func Throw404(w http.ResponseWriter, r *http.Request) {
+func throw404(w http.ResponseWriter, r *http.Request) {
 	log.Println("error no match for route", r.URL.Path)
 	w.WriteHeader(404)
 	w.Write([]byte("Page not found"))
@@ -129,7 +129,7 @@ func handlePostPutPatch(w http.ResponseWriter, r *http.Request, matchedRoute *Ro
 	body, error := ioutil.ReadAll(r.Body)
 
 	if error != nil {
-		Throw500(error, w, r)
+		throw500(error, w, r)
 		return
 	}
 
@@ -137,7 +137,7 @@ func handlePostPutPatch(w http.ResponseWriter, r *http.Request, matchedRoute *Ro
 	error = json.Unmarshal(body, &requestBody)
 
 	if error != nil {
-		Throw500(error, w, r)
+		throw500(error, w, r)
 		return
 	}
 
@@ -152,11 +152,11 @@ func handlePostPutPatch(w http.ResponseWriter, r *http.Request, matchedRoute *Ro
 	if error != nil {
 		switch error.(type) {
 		case *ServerError:
-			Throw500(error, w, r)
+			throw500(error, w, r)
 		case *NotFoundError:
-			Throw404(w, r)
+			throw404(w, r)
 		default:
-			Throw500(error, w, r)
+			throw500(error, w, r)
 		}
 		return
 	}
@@ -170,7 +170,7 @@ func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	matchedRoute := e.findRoute(r)
 	if matchedRoute == nil {
-		Throw404(w, r)
+		throw404(w, r)
 		return
 	}
 
@@ -188,11 +188,11 @@ func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if error != nil {
 		switch error.(type) {
 		case *ServerError:
-			Throw500(error, w, r)
+			throw500(error, w, r)
 		case *NotFoundError:
-			Throw404(w, r)
+			throw404(w, r)
 		default:
-			Throw500(error, w, r)
+			throw500(error, w, r)
 		}
 		return
 	}

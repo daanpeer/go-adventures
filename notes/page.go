@@ -11,6 +11,7 @@ type Page struct {
 	Name      string
 	CreatedAt time.Time
 	ParentID  int
+	Content   string
 }
 
 func mapPage(rows *sql.Rows) Page {
@@ -34,10 +35,10 @@ func mapPages(rows *sql.Rows) []Page {
 func fetchPage(db *sql.DB, id string) (*Page, error) {
 	page := Page{}
 	err := db.QueryRow(`
-		select rowid as id, name, createdAt
+		select rowid as id, name, createdAt, content
 		from page
 		where _ROWID_ = $1
-	`, id).Scan(&page.ID, &page.Name, &page.CreatedAt)
+	`, id).Scan(&page.ID, &page.Name, &page.CreatedAt, &page.Content)
 	if err != nil {
 		return nil, err
 	}
