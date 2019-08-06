@@ -240,6 +240,12 @@ func (e *ServerError) Error() string {
 	return "Server error"
 }
 
+type UnprocessableEntity struct{}
+
+func (e *UnprocessableEntity) Error() string {
+	return "Unprocessable entity"
+}
+
 type NotFoundError struct {
 	Path string
 }

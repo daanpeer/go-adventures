@@ -1,15 +1,21 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
+	"strconv"
 
 	requests "./request"
 )
 
-func getPage(db *sql.DB) requests.RouteHandler {
+func getPage(pr *PageRepository) requests.RouteHandler {
 	return func(req requests.Request, w http.ResponseWriter) (interface{}, error) {
-		page, err := fetchPage(db, req.Parameters["id"])
+		id, err := strconv.Atoi(req.Parameters["id"])
+
+		if err != nil {
+			return nil, err
+		}
+
+		page, err := pr.FindPageById(id)
 		if err != nil {
 			return nil, err
 		}

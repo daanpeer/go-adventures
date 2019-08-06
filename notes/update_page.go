@@ -1,31 +1,27 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
+	"strconv"
 
 	requests "./request"
 )
 
-func updatePage(db *sql.DB) requests.RouteHandler {
+func updatePage(p *PageRepository) requests.RouteHandler {
 	return func(req requests.Request, w http.ResponseWriter) (interface{}, error) {
-		page, err := fetchPage(db, req.Parameters["id"])
+		id, err := strconv.Atoi(req.Parameters["id"])
+		// @TODO throw 403?
 		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, &requests.NotFoundError{}
-			}
 			return nil, err
 		}
 
-		if req.Body["name"] != "" {
-			page.Name = req.Body["name"]
-		}
+		page, error := p.UpdatePage(id, req.Body)
 
-		_, err = db.Exec("update page set name = ? where _ROWID_ = ?", page.Name, page.ID)
-		if err != nil {
-			return nil, err
+		if error != nil {
+			return nil, error
 		}
 
 		return page, nil
+
 	}
 }

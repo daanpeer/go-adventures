@@ -1,32 +1,25 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
+	"strconv"
 
 	requests "./request"
 )
 
-func deletePage(db *sql.DB) requests.RouteHandler {
+func deletePage(p *PageRepository) requests.RouteHandler {
 	return func(req requests.Request, w http.ResponseWriter) (interface{}, error) {
-		page, err := fetchPage(db, req.Parameters["id"])
+		id, err := strconv.Atoi(req.Parameters["id"])
+
+		// @TODO throw 403?
 		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, &requests.NotFoundError{}
-			}
 			return nil, err
 		}
 
-		_, error := db.Exec(`
-			delete
-			from page
-			where _ROWID_ = $1
-		`, &page.ID)
-
-		if error != nil {
-			return nil, error
+		page, err := p.DeletePage(id)
+		if err != nil {
+			return nil, err
 		}
-
 		return page, nil
 	}
 }
