@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -9,7 +10,18 @@ import (
 	requests "./request"
 )
 
-// @TODO return pointers to page instead so we can return nil
+// MarshalJSON custom marshalJSON for page type
+func (page Page) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		ID      int    `json:"id"`
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}{
+		ID:      page.ID,
+		Name:    page.Name,
+		Content: page.Content.String,
+	})
+}
 
 // Page page model
 type Page struct {
@@ -67,7 +79,9 @@ func (p *PageRepository) FindPageById(id int) (Page, error) {
 		return Page{}, err
 	}
 
-	return p.MapPages(rows)[0], err
+	pages := p.MapPages(rows)
+
+	return pages[0], err
 }
 
 func (p *PageRepository) DeletePage(id int) (Page, error) {
