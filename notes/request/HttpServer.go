@@ -124,45 +124,16 @@ func throw404(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Page not found"))
 }
 
-func handlePostPutPatch(w http.ResponseWriter, r *http.Request, matchedRoute *Route) {
-	log.Println("Parsing request body")
-	body, error := ioutil.ReadAll(r.Body)
-
-	if error != nil {
-		throw500(error, w, r)
-		return
+func handleError(err error, w http.ResponseWriter, r *http.Request) {
+	switch err.(type) {
+	case *ServerError:
+		throw500(err, w, r)
+	case *NotFoundError:
+		throw404(w, r)
+	default:
+		throw500(err, w, r)
 	}
-
-	var requestBody map[string]string
-	error = json.Unmarshal(body, &requestBody)
-
-	if error != nil {
-		throw500(error, w, r)
-		return
-	}
-
-	log.Println("Parsed body", requestBody)
-
-	response, error := matchedRoute.Handler(Request{
-		Body:            requestBody,
-		Parameters:      matchedRoute.Parameters(r.URL.Path),
-		OriginalRequest: r,
-	}, w)
-
-	if error != nil {
-		switch error.(type) {
-		case *ServerError:
-			throw500(error, w, r)
-		case *NotFoundError:
-			throw404(w, r)
-		default:
-			throw500(error, w, r)
-		}
-		return
-	}
-
-	w.Header().Set("Access-Control-Allow-Origin:", "*")
-	writeResponse(response, w)
+	return
 }
 
 func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -174,26 +145,34 @@ func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var requestBody map[string]string
+
 	// handle post or patch
 	if matchedRoute.Method == http.MethodPost || matchedRoute.Method == http.MethodPatch {
-		handlePostPutPatch(w, r, matchedRoute)
-		return
+		body, error := ioutil.ReadAll(r.Body)
+
+		if error != nil {
+			throw500(error, w, r)
+			return
+		}
+
+		var requestBody map[string]string
+		error = json.Unmarshal(body, &requestBody)
+
+		if error != nil {
+			throw500(error, w, r)
+			return
+		}
 	}
 
-	response, error := matchedRoute.Handler(Request{
+	response, err := matchedRoute.Handler(Request{
+		Body:            requestBody,
 		Parameters:      matchedRoute.Parameters(r.URL.Path),
 		OriginalRequest: r,
 	}, w)
 
-	if error != nil {
-		switch error.(type) {
-		case *ServerError:
-			throw500(error, w, r)
-		case *NotFoundError:
-			throw404(w, r)
-		default:
-			throw500(error, w, r)
-		}
+	if err != nil {
+		handleError(err, w, r)
 		return
 	}
 
