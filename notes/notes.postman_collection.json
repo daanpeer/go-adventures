@@ -1,0 +1,197 @@
+{
+	"info": {
+		"_postman_id": "9d9ebd30-eb24-480e-a951-9ff3c29dfabc",
+		"name": "notes",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "create page",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"name\": \"kees\"\n}"
+				},
+				"url": {
+					"raw": "localhost:8080/pages",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"pages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update page",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"name\": \"kees\"\n}"
+				},
+				"url": {
+					"raw": "localhost:8080/pages/1",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"pages",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete page",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"name\": \"kees\"\n}"
+				},
+				"url": {
+					"raw": "localhost:8080/pages/1",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"pages",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get pages",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "localhost:8080/pages",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"pages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get page",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "localhost:8080/pages/1",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"pages",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get sub page",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "localhost:8080/pages/sub/6",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"pages",
+						"sub",
+						"6"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
