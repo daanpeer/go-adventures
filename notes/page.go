@@ -17,7 +17,7 @@ type Page struct {
 	Name      string
 	CreatedAt time.Time
 	ParentID  int
-	Content   string
+	Content   sql.NullString
 }
 
 type PageRepository struct {
@@ -67,9 +67,7 @@ func (p *PageRepository) FindPageById(id int) (Page, error) {
 		return Page{}, err
 	}
 
-	rows.Next()
-	defer rows.Close()
-	return p.MapPage(rows), err
+	return p.MapPages(rows)[0], err
 }
 
 func (p *PageRepository) DeletePage(id int) (Page, error) {
@@ -117,9 +115,9 @@ func (p *PageRepository) InsertPage(name string) (Page, error) {
 		name,
 		createdAt,
 		updatedAt,
-	deletedAt	
+		deletedAt	
 	) values (
-		?,
+		$1,
 		date('now'),
 		date('now'),
 		null
