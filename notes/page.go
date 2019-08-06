@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -50,12 +51,24 @@ func (p *PageRepository) MapPages(rows *sql.Rows) []Page {
 }
 
 func (p *PageRepository) FindParent() ([]Page, error) {
-	rows, err := p.db.Query(`select ? from ? where parentID is null`, strings.Join(p.GetColumns(), ","), p.GetTable())
+	rows, err := p.db.Query(fmt.Sprintf(`select %s from %s where parentID is null`, strings.Join(p.GetColumns(), ","), p.GetTable()))
+
+	if err != nil {
+		return []Page{}, err
+	}
+
 	return p.MapPages(rows), err
 }
 
 func (p *PageRepository) FindPageById(id int) (Page, error) {
-	rows, err := p.db.Query(`select ? from ? where _ROWID_ = ?`, strings.Join(p.GetColumns(), ","), p.GetTable(), id)
+	rows, err := p.db.Query(fmt.Sprintf(`select %s from %s where _ROWID_ = ?`, strings.Join(p.GetColumns(), ","), p.GetTable()), id)
+
+	if err != nil {
+		return Page{}, err
+	}
+
+	rows.Next()
+	defer rows.Close()
 	return p.MapPage(rows), err
 }
 
@@ -90,7 +103,7 @@ func (p *PageRepository) UpdatePage(id int, fields map[string]string) (Page, err
 		page.Name = fields["name"]
 	}
 
-	_, err = p.db.Exec("update ? set name = ? where _ROWID_ = ?", p.GetTable(), page.Name, page.ID)
+	_, err = p.db.Exec(fmt.Sprintf("update %s set name = ? where _ROWID_ = ?", p.GetTable()), page.Name, page.ID)
 	if err != nil {
 		return Page{}, err
 	}
@@ -126,7 +139,7 @@ func (p *PageRepository) InsertPage(name string) (Page, error) {
 }
 
 func (p *PageRepository) FindPagesByParent(id int) ([]Page, error) {
-	rows, err := p.db.Query(`select ? from ? where parentID is $1`, strings.Join(p.GetColumns(), ","), p.GetTable(), id)
+	rows, err := p.db.Query(fmt.Sprintf(`select %s from %s where parentID is $1`, strings.Join(p.GetColumns(), ","), p.GetTable()), id)
 	if err != nil {
 		return []Page{}, err
 	}
