@@ -10,6 +10,15 @@ import (
 	requests "./request"
 )
 
+// Page page model
+type Page struct {
+	ID        int
+	Name      string
+	CreatedAt time.Time
+	ParentID  int
+	Content   sql.NullString
+}
+
 // MarshalJSON custom marshalJSON for page type
 func (page Page) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
@@ -23,13 +32,23 @@ func (page Page) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// Page page model
-type Page struct {
-	ID        int
-	Name      string
-	CreatedAt time.Time
-	ParentID  int
-	Content   sql.NullString
+// UnmarshalJSON unmarshal
+func (page *Page) UnmarshalJSON(data []byte) error {
+	type Alias Page
+	aux := &struct {
+		ID       int    `json:"id"`
+		Name     string `json:"name"`
+		ParentID int    `json:parent_id`
+		Content  string `json:"content"`
+	}{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	page.Content = sql.NullString{String: aux.Content}
+	page.ID = aux.ID
+	page.ParentID = aux.ParentID
+	page.Name = aux.Name
+	return nil
 }
 
 type PageRepository struct {
@@ -72,23 +91,23 @@ func (p *PageRepository) FindParent() ([]Page, error) {
 	return p.MapPages(rows), err
 }
 
-func (p *PageRepository) FindPageById(id int) (Page, error) {
+func (p *PageRepository) FindPageById(id int) (*Page, error) {
 	rows, err := p.db.Query(fmt.Sprintf(`select %s from %s where _ROWID_ = ?`, strings.Join(p.GetColumns(), ","), p.GetTable()), id)
 
 	if err != nil {
-		return Page{}, err
+		return nil, err
 	}
 
 	pages := p.MapPages(rows)
 
-	return pages[0], err
+	return &pages[0], err
 }
 
-func (p *PageRepository) DeletePage(id int) (Page, error) {
+func (p *PageRepository) DeletePage(id int) (*Page, error) {
 	page, err := p.FindPageById(id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return Page{}, &requests.NotFoundError{}
+			return nil, &requests.NotFoundError{}
 		}
 	}
 
@@ -99,31 +118,27 @@ func (p *PageRepository) DeletePage(id int) (Page, error) {
 	`, id)
 
 	if err != nil {
-		return Page{}, err
+		return nil, err
 	}
 
 	return page, nil
 }
 
-func (p *PageRepository) UpdatePage(id int, fields map[string]string) (Page, error) {
+func (p *PageRepository) UpdatePage(id int, page *Page) (*Page, error) {
 	page, err := p.FindPageById(id)
 	if err != nil {
-		return Page{}, err
-	}
-
-	if fields["name"] != "" {
-		page.Name = fields["name"]
+		return nil, err
 	}
 
 	_, err = p.db.Exec(fmt.Sprintf("update %s set name = ? where _ROWID_ = ?", p.GetTable()), page.Name, page.ID)
 	if err != nil {
-		return Page{}, err
+		return nil, err
 	}
 
 	return page, nil
 }
 
-func (p *PageRepository) InsertPage(name string) (Page, error) {
+func (p *PageRepository) InsertPage(page *Page) (*Page, error) {
 	res, err := p.db.Exec(`
 	insert into page (
 		name,
@@ -135,16 +150,17 @@ func (p *PageRepository) InsertPage(name string) (Page, error) {
 		date('now'),
 		date('now'),
 		null
-	)`, name)
+	)`, page.Name)
 
+	var newPage = &Page{}
 	if err != nil {
-		return Page{}, err
+		return newPage, err
 	}
 
 	id, err := res.LastInsertId()
 
 	if err != nil {
-		return Page{}, nil
+		return newPage, nil
 	}
 
 	return p.FindPageById(int(id))

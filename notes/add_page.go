@@ -1,6 +1,8 @@
 package main
 
 import (
+	// "database/sql"
+	"encoding/json"
 	"net/http"
 
 	requests "./request"
@@ -8,11 +10,10 @@ import (
 
 func addPage(p *PageRepository) requests.RouteHandler {
 	return func(req requests.Request, w http.ResponseWriter) (interface{}, error) {
-		if req.Body["name"] == "" {
-			return nil, &requests.UnprocessableEntity{}
-		}
+		page := &Page{}
+		err := json.Unmarshal(req.Body, page)
 
-		page, err := p.InsertPage(req.Body["name"])
+		page, err = p.InsertPage(page)
 
 		if err != nil {
 			return nil, err

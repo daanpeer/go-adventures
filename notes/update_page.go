@@ -1,10 +1,10 @@
 package main
 
 import (
+	requests "./request"
+	"encoding/json"
 	"net/http"
 	"strconv"
-
-	requests "./request"
 )
 
 func updatePage(p *PageRepository) requests.RouteHandler {
@@ -12,16 +12,23 @@ func updatePage(p *PageRepository) requests.RouteHandler {
 		id, err := strconv.Atoi(req.Parameters["id"])
 		// @TODO throw 403?
 		if err != nil {
+			return nil, &requests.UnprocessableEntity{}
+		}
+
+		page := &Page{}
+		err = json.Unmarshal(req.Body, page)
+
+		if err != nil {
+			return nil, &requests.UnprocessableEntity{}
+		}
+
+
+		newPage, err := p.UpdatePage(id, page)
+
+		if err != nil {
 			return nil, err
 		}
 
-		page, error := p.UpdatePage(id, req.Body)
-
-		if error != nil {
-			return nil, error
-		}
-
-		return page, nil
-
+		return newPage, nil
 	}
 }

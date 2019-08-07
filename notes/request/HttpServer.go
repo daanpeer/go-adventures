@@ -13,8 +13,8 @@ import (
 // Request contains the url parameters and the request body parsed as JSON
 type Request struct {
 	Parameters      map[string]string
-	Body            map[string]string
 	OriginalRequest *http.Request
+	Body            []byte
 }
 
 // RouteHandler handles the route
@@ -145,28 +145,21 @@ func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestBody map[string]string
+	var body []byte
+	var err error
 
 	// handle post or patch
 	if matchedRoute.Method == http.MethodPost || matchedRoute.Method == http.MethodPatch {
-		body, error := ioutil.ReadAll(r.Body)
+		body, err = ioutil.ReadAll(r.Body)
 
-		if error != nil {
-			throw500(error, w, r)
-			return
-		}
-
-		var requestBody map[string]string
-		error = json.Unmarshal(body, &requestBody)
-
-		if error != nil {
-			throw500(error, w, r)
+		if err != nil {
+			throw500(err, w, r)
 			return
 		}
 	}
 
 	response, err := matchedRoute.Handler(Request{
-		Body:            requestBody,
+		Body:            body,
 		Parameters:      matchedRoute.Parameters(r.URL.Path),
 		OriginalRequest: r,
 	}, w)
