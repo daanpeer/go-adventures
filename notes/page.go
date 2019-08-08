@@ -129,7 +129,7 @@ func (p *PageRepository) DeletePage(id int) (*Page, error) {
 	return page, nil
 }
 
-func (p *PageRepository) UpdatePage(id int, page *Page) (*Page, error) {
+func (p *PageRepository) UpdatePage(id int, newPage *Page) (*Page, error) {
 	page, err := p.FindPageById(id)
 	if err != nil {
 		return nil, err
@@ -139,10 +139,13 @@ func (p *PageRepository) UpdatePage(id int, page *Page) (*Page, error) {
 		return nil, &requests.NotFoundError{}
 	}
 
-	_, err = p.db.Exec(fmt.Sprintf("update %s set name = ? where _ROWID_ = ?", p.GetTable()), page.Name, page.ID)
+	_, err = p.db.Exec(fmt.Sprintf("update %s set name = ?, content = ? where _ROWID_ = ?", p.GetTable()), newPage.Name, newPage.Content.String, page.ID)
 	if err != nil {
 		return nil, err
 	}
+
+	page.Name = newPage.Name
+	page.Content = newPage.Content
 
 	return page, nil
 }
