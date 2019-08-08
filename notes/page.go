@@ -38,7 +38,7 @@ func (page *Page) UnmarshalJSON(data []byte) error {
 	aux := &struct {
 		ID       int    `json:"id"`
 		Name     string `json:"name"`
-		ParentID int    `json:parent_id`
+		ParentID int    `json:"parent_id"`
 		Content  string `json:"content"`
 	}{}
 	if err := json.Unmarshal(data, &aux); err != nil {
@@ -73,7 +73,7 @@ func (p *PageRepository) MapPage(rows *sql.Rows) Page {
 }
 
 func (p *PageRepository) MapPages(rows *sql.Rows) []Page {
-	pages := []Page{}
+	var pages []Page
 	defer rows.Close()
 	for rows.Next() {
 		pages = append(pages, p.MapPage(rows))
@@ -100,6 +100,10 @@ func (p *PageRepository) FindPageById(id int) (*Page, error) {
 
 	pages := p.MapPages(rows)
 
+	if len(pages) == 0 {
+		return nil, nil
+	}
+
 	return &pages[0], err
 }
 
@@ -109,6 +113,7 @@ func (p *PageRepository) DeletePage(id int) (*Page, error) {
 		if err == sql.ErrNoRows {
 			return nil, &requests.NotFoundError{}
 		}
+		return nil, err
 	}
 
 	_, err = p.db.Exec(`
@@ -128,6 +133,10 @@ func (p *PageRepository) UpdatePage(id int, page *Page) (*Page, error) {
 	page, err := p.FindPageById(id)
 	if err != nil {
 		return nil, err
+	}
+
+	if page == nil {
+		return nil, &requests.NotFoundError{}
 	}
 
 	_, err = p.db.Exec(fmt.Sprintf("update %s set name = ? where _ROWID_ = ?", p.GetTable()), page.Name, page.ID)
