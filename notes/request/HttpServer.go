@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+// @TODO pass w as a reference!
+
 // Request contains the url parameters and the request body parsed as JSON
 type Request struct {
 	Parameters      map[string]string
@@ -115,12 +117,14 @@ func (e *HTTPServer) findRoute(r *http.Request) *Route {
 func throw500(err error, w http.ResponseWriter, r *http.Request) {
 	log.Println(err)
 	w.WriteHeader(500)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write([]byte("Server error"))
 }
 
 func throw404(w http.ResponseWriter, r *http.Request) {
 	log.Println("error no match for route", r.URL.Path)
 	w.WriteHeader(404)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write([]byte("Page not found"))
 }
 
@@ -138,6 +142,13 @@ func handleError(err error, w http.ResponseWriter, r *http.Request) {
 
 func (e *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println("Getting route for url", r.URL.Path, r.Method)
+
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "PATCH, POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		return
+	}
 
 	matchedRoute := e.findRoute(r)
 	if matchedRoute == nil {
