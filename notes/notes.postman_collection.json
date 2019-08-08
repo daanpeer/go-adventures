@@ -6,7 +6,7 @@
 	},
 	"item": [
 		{
-			"name": "create page",
+			"name": "Create page",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -19,7 +19,36 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n\t\"name\": \"kees\"\n}"
+					"raw": "{\n\t\"name\": \"kees\",\n\t\"parent_id\": 1,\n\t\"content\": \"##test\"\n}"
+				},
+				"url": {
+					"raw": "localhost:8080/pages",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"pages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create page Copy",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"name\": \"kees\",\n\t\"parent_id\": 1,\n\t\"content\": \"##test\"\n}"
 				},
 				"url": {
 					"raw": "localhost:8080/pages",
@@ -48,17 +77,17 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n\t\"name\": \"kees\"\n}"
+					"raw": "{\n\t\"name\": \"kees\",\n\t\"content\": \"blaat\"\n}"
 				},
 				"url": {
-					"raw": "localhost:8080/pages/1",
+					"raw": "localhost:8080/pages/3",
 					"host": [
 						"localhost"
 					],
 					"port": "8080",
 					"path": [
 						"pages",
-						"1"
+						"3"
 					]
 				}
 			},
@@ -128,6 +157,18 @@
 		},
 		{
 			"name": "Get page",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "15303a48-e9c8-4eaa-a50b-245b9ecec66c",
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"protocolProfileBehavior": {
 				"disableBodyPruning": true
 			},
